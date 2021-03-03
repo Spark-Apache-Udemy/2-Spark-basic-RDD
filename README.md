@@ -4,6 +4,8 @@
 1. [Key/ Value RDD'S](#schema1)
 2. [Filtering RDD'S](#schema2)
 3. [map VS. flatmap](#schema3)
+4. [Text normalization with Regex](#schema4)
+5. [Total spent by customer](#schema5)
 
 
 
@@ -145,3 +147,80 @@ for word, count in wordCounts.items():
         print(cleanWord.decode() + " " + str(count))
 ~~~
 ![result](./image/005.png)
+
+
+<hr>
+
+<a name="schema4"></a>
+
+# 4. Text normalization with Regex  and sorted
+
+1º Importamos librería de expresiones regulares
+~~~ python
+import re
+~~~
+2º Creamos función en la que busca todas las palabras que se ajustan a la expresión regular y las pone en minúscula 
+~~~python
+def normalizeWords(text):
+    return re.compile(r'\W+', re.UNICODE).split(text.lower())
+
+
+input = sc.textFile("./data/book.txt")
+words = input.flatMap(normalizeWords)
+wordCounts = words.countByValue()
+
+~~~
+3º Imprimos el resultado
+![result](./image/006.png)
+
+
+4º Ordenamos por mayor número. 
+
+~~~ python
+wordCounts = words.map(lambda x: (x, 1)).reduceByKey(lambda x, y: x + y)
+wordCountsSorted = wordCounts.map(lambda x: (x[1], x[0])).sortByKey()
+results = wordCountsSorted.collect()
+
+~~~
+5º Imprimos el resultado
+![result](./image/007.png)
+
+<hr>
+
+<a name="schema5"></a>
+
+# 5. Total spent by customer
+1º importamos las librerias de pyspark y creamos la conf
+
+~~~ python
+from pyspark import SparkConf, SparkContext
+
+conf = SparkConf().setMaster("local").setAppName("SpendByCustomer")
+sc = SparkContext(conf = conf)
+~~~
+
+2º Creamos la función que va a separar los valores por las comas
+~~~ python
+def extractCustomerPricePairs(line):
+    fields = line.split(',')
+    return (int(fields[0]), float(fields[2]))
+~~~
+
+3º Cargamos el archivo `customer-order.csv`
+~~~python
+input = sc.textFile("./data/customer-orders.csv")
+~~~
+4º Hacemos el mapeo del archivo `input` con la función `extractCustomerPricePairs` y creamos `totalByCustomer`con la función `reduceBykey`.
+
+~~~python
+mappedInput = input.map(extractCustomerPricePairs)
+totalByCustomer = mappedInput.reduceByKey(lambda x, y: x + y)
+~~~
+5º Obtenemos los resultados y los imprimos.
+~~~ python
+results = totalByCustomer.collect()
+for result in results:
+    print(result)
+~~~
+![result](./image/008.png)
+
